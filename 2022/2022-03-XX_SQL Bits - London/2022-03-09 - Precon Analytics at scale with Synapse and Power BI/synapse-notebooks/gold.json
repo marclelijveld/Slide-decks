@@ -1,0 +1,108 @@
+{
+	"name": "silver_to_gold",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# import ipywidgets as widgets\r\n",
+					"# w = widgets.FloatText()\r\n",
+					"# widget_table_name = widgets.Text(value='Hello World!', disabled=False)"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"gold_table = f\"Sales\"\r\n",
+					"gold_model_root_path = f\"/gold/sales_model\"\r\n",
+					"gold_path = f\"{gold_model_root_path}/{gold_table}\"\r\n",
+					"silver_table = f\"FactSale\"\r\n",
+					"silver_path = f\"/silver/{silver_table}\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"table_mapping = [\r\n",
+					"    {\"Silver\":\"DimensionCity\",              \"Gold\":\"City\"},\r\n",
+					"    {\"Silver\":\"DimensionCustomer\",          \"Gold\":\"Customer\"},\r\n",
+					"    {\"Silver\":\"DimensionDate\",              \"Gold\":\"Date\"},\r\n",
+					"    {\"Silver\":\"DimensionEmployee\",          \"Gold\":\"Employee\"},\r\n",
+					"    {\"Silver\":\"DimensionPaymentMethod\",     \"Gold\":\"PaymentMethod\"},\r\n",
+					"    {\"Silver\":\"DimensionStockItem\",         \"Gold\":\"StockItem\"},\r\n",
+					"    {\"Silver\":\"DimensionSupplier\",          \"Gold\":\"Supplier\"},\r\n",
+					"    {\"Silver\":\"DimensionTransactionType\",   \"Gold\":\"TransactionType\"},\r\n",
+					"    {\"Silver\":\"FactMovement\",               \"Gold\":\"Movements\"},\r\n",
+					"    {\"Silver\":\"FactOrder\",                  \"Gold\":\"Orders\"},\r\n",
+					"    {\"Silver\":\"FactPurchase\",               \"Gold\":\"Purchases\"},\r\n",
+					"    {\"Silver\":\"FactSale\",                   \"Gold\":\"Sales\"},\r\n",
+					"    {\"Silver\":\"FactStockHolding\",           \"Gold\":\"StockHoldings\"},\r\n",
+					"    {\"Silver\":\"FactTransaction\",            \"Gold\":\"Transactions\"}\r\n",
+					"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"for mapping in table_mapping:\r\n",
+					"    silver_path = f\"/silver/{mapping['Silver']}\"\r\n",
+					"    gold_path = f\"{gold_model_root_path}/{mapping['Gold']}\"\r\n",
+					"    print(f\"Mapping data from silver path '{silver_path}' to gold path '{gold_path}'..\")\r\n",
+					"    df_silver = spark.read.format(\"delta\").load(silver_path)\r\n",
+					"    df_silver.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"InvoiceDateKey\").save(gold_path)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

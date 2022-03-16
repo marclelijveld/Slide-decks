@@ -1,0 +1,391 @@
+{
+	"name": "silver_openweather",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"run_path = '2022/03/04/20_00_00'\r\n",
+					"run_id = ''\r\n",
+					"run_timestamp = '2022-03-04-20T20:00:00'"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"try:\r\n",
+					"    mssparkutils.fs.mount( \r\n",
+					"        \"abfss://defaultfs@yourstorageaccounthere.dfs.core.windows.net\", \r\n",
+					"        \"/mnt_defaultfs\", \r\n",
+					"        {\"linkedService\":\"yourIRhere\"} \r\n",
+					"    )\r\n",
+					"except:\r\n",
+					"  print(\"An exception occurred, mount already there?\")"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"jobId = mssparkutils.env.getJobId()"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"CURRENT_WEATHER_BRONZE_FILE_PATH = f\"/synfs/{jobId}/mnt_defaultfs/bronze/openweather/{run_path}/current/json_data.json\"\r\n",
+					"print(CURRENT_WEATHER_BRONZE_FILE_PATH)\r\n",
+					"\r\n",
+					"FORECAST_WEATHER_BRONZE_FILE_PATH = f\"/synfs/{jobId}/mnt_defaultfs/bronze/openweather/{run_path}/forecast/json_data.json\"\r\n",
+					"print(FORECAST_WEATHER_BRONZE_FILE_PATH)"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"import pandas as pd\n",
+					"import json"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"with open(CURRENT_WEATHER_BRONZE_FILE_PATH) as json_file:\r\n",
+					"    json_data = json.load(json_file)"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### transforming the json into a dataframe"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_all_current_weather = pd.DataFrame()\n",
+					"prediction_num = 0\n",
+					"\n",
+					"# Create empty lists to store the JSON Data\n",
+					"current_weather_id = []\n",
+					"current_time = []\n",
+					"own_city_id = []\n",
+					"city = []\n",
+					"latitude = []\n",
+					"longitude = []\n",
+					"country = []\n",
+					"timezone = []\n",
+					"sunrise = []\n",
+					"sunset = []\n",
+					"temperature = []\n",
+					"temperature_feel = []\n",
+					"temperature_min = []\n",
+					"temperature_max = []\n",
+					"pressure = []\n",
+					"humidity = []\n",
+					"main = []\n",
+					"main_description = []\n",
+					"clouds = []\n",
+					"wind_speed = []\n",
+					"wind_degree = []\n",
+					"visibility = []\n",
+					"\n",
+					"# Add JSON Data to the lists\n",
+					"prediction_num +=1\n",
+					"current_weather_id.append(prediction_num + 1)\n",
+					"current_time.append(pd.Timestamp.now())\n",
+					"own_city_id.append(json_data['id'])\n",
+					"city.append(json_data['name'])\n",
+					"latitude.append(json_data['coord']['lat'])\n",
+					"longitude.append(json_data['coord']['lon'])\n",
+					"country.append(json_data['sys']['country'])\n",
+					"if json_data['timezone'] >0 :\n",
+					"    timezone.append((\"+\" + str((json_data['timezone'])/3600)))\n",
+					"else:\n",
+					"    timezone.append(((json_data['timezone'])/3600))\n",
+					"sunrise.append(json_data['sys']['sunrise'])\n",
+					"sunset.append(json_data['sys']['sunset'])\n",
+					"temperature.append(json_data['main']['temp'])\n",
+					"temperature_feel.append(json_data['main']['feels_like'])\n",
+					"temperature_min.append(json_data['main']['temp_min'])\n",
+					"temperature_max.append(json_data['main']['temp_max'])\n",
+					"pressure.append(json_data['main']['pressure'])\n",
+					"humidity.append(json_data['main']['humidity'])\n",
+					"main.append(json_data['weather'][0]['main'])\n",
+					"main_description.append(json_data['weather'][0]['description'])\n",
+					"clouds.append(json_data['clouds']['all'])\n",
+					"wind_speed.append(json_data['wind']['speed'])\n",
+					"wind_degree.append(json_data['wind']['deg'])\n",
+					"visibility.append(json_data['visibility'])\n",
+					"\n",
+					"# Write Lists to DataFrame\n",
+					"df_all_current_weather['current_weather_id'] = current_weather_id\n",
+					"df_all_current_weather['current_time'] = current_time\n",
+					"df_all_current_weather['own_city_id'] = own_city_id\n",
+					"df_all_current_weather['city'] = city\n",
+					"df_all_current_weather['latitude'] = latitude\n",
+					"df_all_current_weather['longitude'] = longitude\n",
+					"df_all_current_weather['country'] = country\n",
+					"df_all_current_weather['timezone'] = timezone\n",
+					"df_all_current_weather['sunrise'] = sunrise\n",
+					"df_all_current_weather['sunset'] = sunset\n",
+					"df_all_current_weather['temperature'] = temperature\n",
+					"df_all_current_weather['temperature_feel'] = temperature_feel\n",
+					"df_all_current_weather['temperature_min'] = temperature_min\n",
+					"df_all_current_weather['temperature_max'] = temperature_max\n",
+					"df_all_current_weather['pressure'] = pressure\n",
+					"df_all_current_weather['humidity'] = humidity\n",
+					"df_all_current_weather['main'] = main\n",
+					"df_all_current_weather['main_description'] = main_description\n",
+					"df_all_current_weather['clouds'] = clouds\n",
+					"df_all_current_weather['wind_speed'] = wind_speed\n",
+					"df_all_current_weather['wind_degree'] = wind_degree\n",
+					"df_all_current_weather['visibility'] = visibility"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"sparkDF = spark.createDataFrame(df_all_current_weather)\r\n",
+					"#display(sparkDF)\r\n",
+					"sparkDF.write.format(\"delta\").mode(\"append\").option(\"mergeSchema\", \"true\").save('/silver/openweather/current')"
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Forecast"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": true
+					}
+				},
+				"source": [
+					"with open(FORECAST_WEATHER_BRONZE_FILE_PATH) as json_file:\r\n",
+					"    forecast_json_data = json.load(json_file)\r\n",
+					"\r\n",
+					"forecast_main = forecast_json_data['list'][0]['main']\r\n",
+					"num_forecasts = len(forecast_json_data['list'])\r\n",
+					"\r\n",
+					"df_predictions = pd.DataFrame()"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Creating empty lists\n",
+					"prediction_num = 0\n",
+					"list_prediction_num = []\n",
+					"date_time_prediction = []\n",
+					"owm_city_id = []\n",
+					"city_name = []\n",
+					"latitude = []\n",
+					"longitude = []\n",
+					"country_name = []\n",
+					"population = []\n",
+					"timezone = [] # Shift in seconds from UTC\n",
+					"sunrise = []\n",
+					"sunset = []\n",
+					"# Main\n",
+					"temp_prediction = []\n",
+					"temp_feels_like_prediction = []\n",
+					"temp_min_prediction = []\n",
+					"temp_max_prediction = []\n",
+					"pressure_prediction = []\n",
+					"sea_level_prediction = []\n",
+					"grnd_level_prediction = []\n",
+					"humidity_prediction = []\n",
+					"temp_kf_prediction = []\n",
+					"# Weather\n",
+					"main_weather_prediction = []\n",
+					"main_weather_description_prediction = []\n",
+					"# Clouds\n",
+					"clouds_prediction = []\n",
+					"# Wind\n",
+					"wind_speed_prediction = []\n",
+					"wind_degree_prediction = []\n",
+					"\n",
+					"# Loop Through the JSON\n",
+					"for num_forecasts in forecast_json_data['list']:\n",
+					"    df_predictions['prediction_num'] = prediction_num\n",
+					"    list_prediction_num.append(prediction_num)\n",
+					"    date_time_prediction.append(forecast_json_data['list'][prediction_num]['dt_txt'])\n",
+					"    \n",
+					"    owm_city_id.append(forecast_json_data['city']['id'])\n",
+					"    city_name.append(forecast_json_data['city']['name'])\n",
+					"    latitude.append(forecast_json_data['city']['coord']['lat'])\n",
+					"    longitude.append(forecast_json_data['city']['coord']['lon'])\n",
+					"    country_name.append(forecast_json_data['city']['country'])\n",
+					"    population.append(forecast_json_data['city']['population'])\n",
+					"    \n",
+					"    if forecast_json_data['city']['timezone'] >0 :\n",
+					"        timezone.append(\"+\" + str((forecast_json_data['city']['timezone'])/3600))\n",
+					"    else:\n",
+					"        timezone.append((forecast_json_data['city']['timezone'])/3600)\n",
+					"        \n",
+					"    sunrise.append(forecast_json_data['city']['sunrise'])\n",
+					"    sunset.append(forecast_json_data['city']['sunset'])\n",
+					"    \n",
+					"    # Main\n",
+					"    temp_prediction.append(forecast_json_data['list'][prediction_num]['main']['temp'])\n",
+					"    temp_feels_like_prediction.append(forecast_json_data['list'][prediction_num]['main']['feels_like'])\n",
+					"    temp_min_prediction.append(forecast_json_data['list'][prediction_num]['main']['temp_min'])\n",
+					"    temp_max_prediction.append(forecast_json_data['list'][prediction_num]['main']['temp_max'])\n",
+					"    pressure_prediction.append(forecast_json_data['list'][prediction_num]['main']['pressure'])\n",
+					"    sea_level_prediction.append(forecast_json_data['list'][prediction_num]['main']['sea_level'])\n",
+					"    grnd_level_prediction.append(forecast_json_data['list'][prediction_num]['main']['grnd_level'])\n",
+					"    humidity_prediction.append(forecast_json_data['list'][prediction_num]['main']['humidity'])\n",
+					"    temp_kf_prediction.append(forecast_json_data['list'][prediction_num]['main']['temp_kf'])\n",
+					"    # Weather\n",
+					"    main_weather_prediction.append(forecast_json_data['list'][prediction_num]['weather'][0]['main'])\n",
+					"    main_weather_description_prediction.append(forecast_json_data['list'][prediction_num]['weather'][0]['description'])\n",
+					"    # Clouds\n",
+					"    clouds_prediction.append(forecast_json_data['list'][prediction_num]['clouds']['all'])\n",
+					"    # Wind\n",
+					"    wind_speed_prediction.append(forecast_json_data['list'][prediction_num]['wind']['speed'])\n",
+					"    wind_degree_prediction.append(forecast_json_data['list'][prediction_num]['wind']['deg'])\n",
+					"    \n",
+					"    prediction_num += 1\n",
+					"\n",
+					"# Put data into a dataframe\n",
+					"df_predictions['prediction_num'] = list_prediction_num\n",
+					"df_predictions['date_time_prediction'] = date_time_prediction\n",
+					"df_predictions['owm_city_id'] = owm_city_id\n",
+					"df_predictions['city_name'] = city_name\n",
+					"df_predictions['latitude'] = latitude\n",
+					"df_predictions['longitude'] = longitude\n",
+					"df_predictions['country_name'] = country_name\n",
+					"df_predictions['population'] = population\n",
+					"df_predictions['timezone'] = timezone\n",
+					"df_predictions['sunrise'] = sunrise\n",
+					"df_predictions['sunset'] = sunset\n",
+					"# Main\n",
+					"df_predictions['temp_prediction'] = temp_prediction\n",
+					"df_predictions['temp_feels_like_prediction'] = temp_feels_like_prediction\n",
+					"df_predictions['temp_min_prediction'] = temp_min_prediction\n",
+					"df_predictions['temp_max_prediction'] = temp_max_prediction\n",
+					"df_predictions['pressure_prediction'] = pressure_prediction\n",
+					"df_predictions['sea_level_prediction'] = sea_level_prediction\n",
+					"df_predictions['grnd_level_prediction'] = grnd_level_prediction\n",
+					"df_predictions['humidity_prediction'] = humidity_prediction\n",
+					"df_predictions['temp_kf_prediction'] = temp_kf_prediction\n",
+					"# Weather\n",
+					"df_predictions['main_weather_prediction'] = main_weather_prediction\n",
+					"df_predictions['main_weather_description_prediction'] = main_weather_description_prediction\n",
+					"# Clouds\n",
+					"df_predictions['clouds_prediction'] = clouds_prediction\n",
+					"# Wind\n",
+					"df_predictions['wind_speed_prediction'] = wind_speed_prediction\n",
+					"df_predictions['wind_degree_prediction'] = wind_degree_prediction"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"sparkDF = spark.createDataFrame(df_predictions)\r\n",
+					"#display(sparkDF)\r\n",
+					"sparkDF.write.format(\"delta\").mode(\"append\").option(\"mergeSchema\", \"true\").save('/silver/openweather/forecast')"
+				],
+				"execution_count": 24
+			}
+		]
+	}
+}
