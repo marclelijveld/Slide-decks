@@ -1,0 +1,153 @@
+{
+	"name": "silver",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"run_path = '2022/03/04/20_00_00'\r\n",
+					"run_id = ''\r\n",
+					"run_timestamp = '2022-03-04-20T20:00:00'\r\n",
+					"run_load_type = 'incremental_load'"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": []
+				},
+				"source": [
+					"#from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"\r\n",
+					"# Primary storage info\r\n",
+					"account_name = 'youraccounthere'\r\n",
+					"container_name = 'defaultfs'\r\n",
+					"if run_load_type == \"incremental_load\":\r\n",
+					"    write_mode = 'append'\r\n",
+					"else:\r\n",
+					"    write_mode = 'overwrite'"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## World Wide Importers data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"table_names = {\r\n",
+					"    \"DimensionCity\",\r\n",
+					"    \"DimensionCustomer\",\r\n",
+					"    \"DimensionDate\",\r\n",
+					"    \"DimensionEmployee\",\r\n",
+					"    \"DimensionPaymentMethod\",\r\n",
+					"    \"DimensionStockItem\",\r\n",
+					"    \"DimensionSupplier\",\r\n",
+					"    \"DimensionTransactionType\",\r\n",
+					"    \"FactMovement\",\r\n",
+					"    \"FactOrder\",\r\n",
+					"    \"FactPurchase\",\r\n",
+					"    \"FactSale\",\r\n",
+					"    \"FactStockHolding\",\r\n",
+					"    \"FactTransaction\"\r\n",
+					"}\r\n",
+					"\r\n",
+					"wwi_relative_path = 'bronze/wwi'\r\n",
+					"wwi_full_adls_folder_path = 'abfss://%s@%s.dfs.core.windows.net/%s/%s/' % (container_name, account_name, wwi_relative_path, run_path)\r\n",
+					"print('Primary storage account path: ' + wwi_full_adls_folder_path)\r\n",
+					"\r\n",
+					"for table in table_names:    \r\n",
+					"    parquet_path = wwi_full_adls_folder_path + f\"{table}.parquet\"\r\n",
+					"    print('Source parquet file path: ' + parquet_path)\r\n",
+					"    \r\n",
+					"    delta_table_path = f\"/silver/wwi/{table}\"\r\n",
+					"    print('Sink delta table path: ' + delta_table_path)\r\n",
+					"\r\n",
+					"    df_parquet = spark.read.parquet(parquet_path)\r\n",
+					"    df_parquet.write.format(\"delta\").mode(write_mode).option(\"overwriteSchema\", \"true\").save(delta_table_path)"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## OpenWeather data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#call notebook\r\n",
+					"mssparkutils.notebook.run('/silver_openweather', timeout_seconds=300, arguments={ \"run_path\": run_path})"
+				],
+				"execution_count": 3
+			}
+		]
+	}
+}
