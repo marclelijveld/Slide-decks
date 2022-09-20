@@ -1,0 +1,313 @@
+{
+	"name": "streaming_sales",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"GOLD_DELTA_TABLE_PATH='/gold/sales_model/Sales'\r\n",
+					"STREAM_INPUT_DELTA_TABLE_PATH='/bronze/stream_of_sales_input'\r\n",
+					"STREAM_BRONZE_DELTA_TABLE_PATH='/bronze/stream_of_sales'\r\n",
+					"STREAM_SILVER_DELTA_TABLE_CHECKPOINT_PATH='/silver/stream_of_sales_checkpoint'\r\n",
+					"STREAM_SILVER_DELTA_TABLE_PATH='/silver/stream_of_sales'\r\n",
+					"STREAM_GOLD_DELTA_TABLE_CHECKPOINT_PATH='/gold/stream_of_sales_checkpoint'\r\n",
+					"STREAM_GOLD_DELTA_TABLE_PATH=f\"/gold/sales_model/Sales\"\r\n",
+					"LIMIT = 10\r\n",
+					"SLEEP = 0.5"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# store limited df and reuse that over and over again\r\n",
+					"# df_once = spark.read.format(\"delta\").load(GOLD_DELTA_TABLE_PATH).limit(LIMIT)\r\n",
+					"# df_once.write.format('delta').mode(\"overwrite\").save(STREAM_INPUT_DELTA_TABLE_PATH)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def file_exists(path):\r\n",
+					"  try:\r\n",
+					"    mssparkutils.fs.ls(path)\r\n",
+					"    return True\r\n",
+					"  except Exception as e:\r\n",
+					"    if 'java.io.FileNotFoundException' in str(e):\r\n",
+					"      return False\r\n",
+					"    else:\r\n",
+					"      raise"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if file_exists(STREAM_BRONZE_DELTA_TABLE_PATH):\r\n",
+					"    mssparkutils.fs.rm(STREAM_BRONZE_DELTA_TABLE_PATH, recurse=True)\r\n",
+					"if file_exists(STREAM_SILVER_DELTA_TABLE_CHECKPOINT_PATH):\r\n",
+					"    mssparkutils.fs.rm(STREAM_SILVER_DELTA_TABLE_CHECKPOINT_PATH, recurse=True)\r\n",
+					"if file_exists(STREAM_SILVER_DELTA_TABLE_PATH):\r\n",
+					"    mssparkutils.fs.rm(STREAM_SILVER_DELTA_TABLE_PATH, recurse=True)\r\n",
+					"if file_exists(STREAM_GOLD_DELTA_TABLE_CHECKPOINT_PATH):\r\n",
+					"    mssparkutils.fs.rm(STREAM_GOLD_DELTA_TABLE_CHECKPOINT_PATH, recurse=True)\r\n",
+					"if spark.streams.active:  # get the list of currently active streaming queries\r\n",
+					"    for stream in spark.streams.active:\r\n",
+					"        stream.stop()"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from time import sleep"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def add_some_records_to_bronze_for_stream_pickup():    \r\n",
+					"    df = spark.read.format(\"delta\").load(STREAM_INPUT_DELTA_TABLE_PATH)\r\n",
+					"    df.write.format('delta').mode(\"append\").save(STREAM_BRONZE_DELTA_TABLE_PATH)\r\n",
+					"\r\n",
+					"    # df.printSchema()"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"add_some_records_to_bronze_for_stream_pickup()"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"stream_to_gold = (\r\n",
+					"    spark.readStream.format('delta').load(STREAM_BRONZE_DELTA_TABLE_PATH)\r\n",
+					"        .withColumn('InvoiceDateKey', to_date(current_date()))\r\n",
+					"        .withColumn('DeliveryDateKey', to_date(date_add(current_date(),1)))\r\n",
+					"        .writeStream.format('delta')\r\n",
+					"        .option('mode', 'append')\r\n",
+					"        .option('checkpointLocation', STREAM_GOLD_DELTA_TABLE_CHECKPOINT_PATH)\r\n",
+					"        .queryName('stream_to_gold')\r\n",
+					"        .start(STREAM_GOLD_DELTA_TABLE_PATH)\r\n",
+					")\r\n",
+					"print(stream_to_gold.isActive)\r\n",
+					"sleep(2) #give it time to init\r\n",
+					"print(stream_to_gold.status)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# query.id()          # get the unique identifier of the running query that persists across restarts from checkpoint data\r\n",
+					"# query.runId()       # get the unique id of this run of the query, which will be generated at every start/restart\r\n",
+					"# query.name()        # get the name of the auto-generated or user-specified name\r\n",
+					"# query.explain()   # print detailed explanations of the query\r\n",
+					"# query.stop()      # stop the query\r\n",
+					"# query.awaitTermination()   # block until query is terminated, with stop() or with error\r\n",
+					"# query.exception()       # the exception if the query has been terminated with error\r\n",
+					"# query.recentProgress  # a list of the most recent progress updates for this query\r\n",
+					"# query.lastProgress    # the most recent progress update of this streaming query"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# if spark.streams.active:  # get the list of currently active streaming queries\r\n",
+					"#     for stream in spark.streams.active:\r\n",
+					"#         print('Stream id: ' + stream.id)\r\n",
+					"#         print('Stream name: ' + stream.name)\r\n",
+					"#         print('Stream runId:' + stream.runId)\r\n",
+					"#         print('Stream status: ' + stream_to_gold.status)\r\n",
+					"#         stream.exception()\r\n",
+					"#         print('Stream explain: ')\r\n",
+					"#         stream.explain()"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"while True:\r\n",
+					"    sleep(SLEEP)\r\n",
+					"    add_some_records_to_bronze_for_stream_pickup()\r\n",
+					"    if stream_to_gold.isActive == False:\r\n",
+					"        print('Stream status: ' + stream_to_gold.status)\r\n",
+					"        print(stream.exception())\r\n",
+					"        stream_to_gold.stop()\r\n",
+					"        raise\r\n",
+					"    print(stream_to_gold.status)"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(stream_to_gold.status)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# stream_to_silver.stop()\r\n",
+					"stream_to_gold.stop()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
