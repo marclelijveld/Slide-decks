@@ -1,0 +1,43 @@
+
+var charsToRemove = new HashSet<char> { ' ', '_', '-', '.', '(', ')', '[', ']' };
+
+foreach (var c in Model.AllColumns)
+{
+    string name = c.Name;
+    var newNameBuilder = new System.Text.StringBuilder();
+
+    // Always add the first character
+    newNameBuilder.Append(name[0]);
+
+    for (int i = 1; i < name.Length; i++)
+    {
+        char ch = name[i];
+
+        // Skip unwanted characters
+        if (charsToRemove.Contains(ch))
+        {
+            continue;
+        }
+
+        // Insert space before uppercase letters only if:
+        // - previous character is lowercase
+        // - previous character is not a space
+        if (char.IsUpper(ch) &&
+            char.IsLower(name[i - 1]) &&
+            newNameBuilder[newNameBuilder.Length - 1] != ' ')
+        {
+            newNameBuilder.Append(" ");
+        }
+
+        newNameBuilder.Append(ch);
+    }
+
+    string newName = newNameBuilder.ToString();
+
+    if (newName != name)
+    {
+        Console.WriteLine(string.Format("Renaming column: {0}.{1} to {2}", c.Table.Name, name, newName));
+        c.Name = newName;
+    }
+}
+
